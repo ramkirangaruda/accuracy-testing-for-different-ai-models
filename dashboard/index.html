@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TestServ AI Model Comparator — iFocus Systec</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #ffffff;
+            --bg-secondary: #f5f5f4;
+            --bg-tertiary: #eeece8;
+            --text: #1a1a18;
+            --text-secondary: #6b6b67;
+            --border: rgba(0, 0, 0, 0.12);
+            --border-strong: rgba(0, 0, 0, 0.25);
+            --info-bg: #e6f1fb;
+            --info-text: #185fa5;
+            --info-border: rgba(24, 95, 165, 0.3);
+            --success-bg: #eaf3de;
+            --success-text: #3b6d11;
+            --success-border: rgba(59, 109, 17, 0.3);
+            --warn-bg: #faeeda;
+            --warn-text: #854f0b;
+            --danger-bg: #fcebeb;
+            --danger-text: #a32d2d;
+            --danger-border: rgba(163, 45, 45, 0.3);
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1e1e1c;
+                --bg-secondary: #2a2a27;
+                --bg-tertiary: #333330;
+                --text: #f0ede8;
+                --text-secondary: #9c9990;
+                --border: rgba(255, 255, 255, 0.1);
+                --border-strong: rgba(255, 255, 255, 0.22);
+                --info-bg: #042c53;
+                --info-text: #85b7eb;
+                --info-border: rgba(133, 183, 235, 0.25);
+                --success-bg: #173404;
+                --success-text: #97c459;
+                --success-border: rgba(151, 196, 89, 0.25);
+                --warn-bg: #412402;
+                --warn-text: #ef9f27;
+                --danger-bg: #501313;
+                --danger-text: #f09595;
+                --danger-border: rgba(240, 149, 149, 0.25);
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-tertiary);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .app-shell {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        /* ── Header ── */
+        .header {
+            margin-bottom: 2rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 0.5px solid var(--border);
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--info-text);
+            background: var(--info-bg);
+            border: 0.5px solid var(--info-border);
+            border-radius: 999px;
+            padding: 3px 10px;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 26px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--bg);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        /* ── Form elements ── */
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea,
+        select {
+            width: 100%;
+            font-size: 14px;
+            padding: 9px 12px;
+            border: 0.5px solid var(--border-strong);
+            border-radius: var(--radius);
+            background: var(--bg-secondary);
+            color: var(--text);
+            font-family: inherit;
+            transition: border-color 0.15s;
+            outline: none;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: var(--info-text);
+            box-shadow: 0 0 0 3px var(--info-bg);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 88px;
+            line-height: 1.5;
+        }
+
+        .field {
+            margin-bottom: 14px;
+        }
+
+        .field:last-child {
+            margin-bottom: 0;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 9px 16px;
+            border-radius: var(--radius);
+            border: 0.5px solid var(--border-strong);
+            cursor: pointer;
+            transition: all 0.15s;
+            background: var(--bg-secondary);
+            color: var(--text);
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: var(--text);
+            color: var(--bg);
+            border-color: var(--text);
+            width: 100%;
+            padding: 12px;
+            font-size: 15px;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.85;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-sm {
+            font-size: 12px;
+            padding: 5px 12px;
+        }
+
+        /* ── Model selector ── */
+        .model-selector {
+            margin-bottom: 1.25rem;
+        }
+
+        .ms-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .ms-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+            gap: 8px;
+        }
+
+        .model-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            background: var(--bg-secondary);
+            transition: all 0.15s;
+            user-select: none;
+        }
+
+        .model-chip:hover {
+            border-color: var(--border-strong);
+            background: var(--bg);
+        }
+
+        .model-chip.selected {
+            border-color: var(--info-border);
+            background: var(--info-bg);
+            color: var(--info-text);
+        }
+
+        .model-chip .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 1.5px solid currentColor;
+            flex-shrink: 0;
+        }
+
+        .model-chip.selected .dot {
+            background: currentColor;
+        }
+
+        .model-chip .chip-name {
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .selected-count {
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding: 5px 10px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            border: 0.5px solid var(--border);
+        }
+
+        /* ── Progress ── */
+        .progress-section {
+            margin: 1.25rem 0;
+            display: none;
+        }
+
+        .progress-bar-wrap {
+            background: var(--bg-secondary);
+            border-radius: 999px;
+            height: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--text);
+            border-radius: 999px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .model-status-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 6px;
+        }
+
+        .msl-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding: 6px 10px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .msl-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .msl-time {
+            font-size: 11px;
+            opacity: 0.6;
+            flex-shrink: 0;
+        }
+
+        /* ── Status dots ── */
+        .dot-status {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .dot-pending {
+            background: var(--text-secondary);
+            opacity: 0.3;
+        }
+
+        .dot-running {
+            background: #378ADD;
+            animation: pulse 1s infinite;
+        }
+
+        .dot-done {
+            background: #1D9E75;
+        }
+
+        .dot-error {
+            background: #E24B4A;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.4
+            }
+        }
+
+        /* ── Results ── */
+        .results-section {
+            display: none;
+            margin-top: 1.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 2px;
+            border-bottom: 0.5px solid var(--border);
+            margin-bottom: 1.25rem;
+        }
+
+        .tab {
+            font-size: 13px;
+            padding: 9px 16px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab.active {
+            border-bottom-color: var(--text);
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* ── Metric cards ── */
+        .summary-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 1.25rem;
+        }
+
+        .metric-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .metric-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* ── Chart wrappers ── */
+        .chart-card {
+            background: var(--bg);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .chart-card h3 {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        /* ── Model result cards ── */
+        .model-result-card {
+            background: var(--bg);
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            margin-bottom: 12px;
+        }
+
+        .model-result-card.top-card {
+            border-color: var(--success-border);
+        }
+
+        .mrc-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .rank-badge {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .rank-1 {
+            background: #FAC775;
+            color: #633806;
+        }
+
+        .rank-2 {
+            background: #D3D1C7;
+            color: #2C2C2A;
+        }
+
+        .rank-3 {
+            background: #F5C4B3;
+            color: #4A1B0C;
+        }
+
+        .rank-n {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+        }
+
+        .mrc-name {
+            font-size: 15px;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .mrc-overall {
+            font-size: 20px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        .score-high {
+            color: #1D9E75;
+        }
+
+        .score-mid {
+            color: #BA7517;
+        }
+
+        .score-low {
+            color: #E24B4A;
+        }
+
+        .latency-tag {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            border: 0.5px solid var(--border);
+            border-radius: 999px;
+            padding: 2px 9px;
+        }
+
+        .winner-tag {
+            font-size: 11px;
+            color: var(--success-text);
+            background: var(--success-bg);
+            border: 0.5px solid var(--success-border);
+            border-radius: 999px;
+            padding: 2px 9px;
+        }
+
+        .score-bars {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .score-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .score-bar-track {
+            height: 4px;
+            background: var(--bg-secondary);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .score-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+        }
+
+        .test-stats {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .tc-preview {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 10px 14px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .tc-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 5px 0;
+            border-bottom: 0.5px solid var(--border);
+            line-height: 1.4;
+        }
+
+        .tc-row:last-child {
+            border-bottom: none;
+        }
+
+        .tc-id {
+            font-weight: 600;
+            color: var(--text);
+            flex-shrink: 0;
+            width: 44px;
+        }
+
+        .tc-title {
+            flex: 1;
+        }
+
+        .tc-type-badge {
+            font-size: 10px;
+            padding: 1px 7px;
+            border-radius: 999px;
+            flex-shrink: 0;
+        }
+
+        .type-pos {
+            background: var(--success-bg);
+            color: var(--success-text);
+        }
+
+        .type-neg {
+            background: var(--warn-bg);
+            color: var(--warn-text);
+        }
+
+        .type-edge {
+            background: var(--danger-bg);
+            color: var(--danger-text);
+        }
+
+        .tc-priority {
+            font-size: 10px;
+            color: var(--text-secondary);
+            opacity: 0.7;
+            flex-shrink: 0;
+        }
+
+        .tc-summary {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 0.5px solid var(--border);
+        }
+
+        /* ── Comparison table ── */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .comparison-table th {
+            text-align: left;
+            padding: 10px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            border-bottom: 0.5px solid var(--border);
+        }
+
+        .comparison-table td {
+            padding: 10px 12px;
+            border-bottom: 0.5px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table tbody tr:hover td {
+            background: var(--bg-secondary);
+        }
+
+        .mini-bar {
+            display: inline-block;
+            height: 4px;
+            border-radius: 999px;
+            vertical-align: middle;
+            margin-left: 6px;
+        }
+
+        /* ── Error / info banners ── */
+        .banner {
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            margin: 8px 0;
+        }
+
+        .banner-error {
+            background: var(--danger-bg);
+            color: var(--danger-text);
+            border: 0.5px solid var(--danger-border);
+        }
+
+        .banner-info {
+            background: var(--info-bg);
+            color: var(--info-text);
+            border: 0.5px solid var(--info-border);
+        }
+
+        .banner-warn {
+            background: var(--warn-bg);
+            color: var(--warn-text);
+        }
+
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .row {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .score-bars {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-shell">
+
+        <div class="header">
+            <div class="header-badge">iFocus Systec · TestServ</div>
+            <h1>AI Model Test Case Comparator</h1>
+            <p>Compare test case quality and accuracy across all models in your API key</p>
+        </div>
+
+
+        <!-- Model selector -->
+        <div class="card model-selector">
+            <div class="ms-topbar">
+                <div class="card-title" style="margin-bottom:0;">Models to compare</div>
+                <div class="ms-actions">
+                    <button class="btn btn-sm" onclick="selectAll()">Select all</button>
+                    <button class="btn btn-sm" onclick="selectNone()">Clear</button>
+                    <span class="selected-count" id="selectedCount">0 selected</span>
+                </div>
+            </div>
+            <div class="model-grid" id="modelGrid">
+                <div class="empty-state" style="grid-column:1/-1; padding:2rem;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="1.5">
+                        <rect x="2" y="3" width="20" height="14" rx="2" />
+                        <path d="M8 21h8M12 17v4" />
+                    </svg>
+                    <p style="font-size:13px;">Load models from your API endpoint or use demo mode</p>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" id="runBtn" onclick="loadResultsAfterDelay()">
+            ▶ Run comparison across selected models
+        </button>
+
+        <!-- Progress -->
+        <div class="progress-section" id="progressSection">
+            <div class="progress-bar-wrap">
+                <div class="progress-bar" id="progressBar" style="width:0%"></div>
+            </div>
+            <div class="progress-label" id="progressLabel">Starting...</div>
+            <div class="model-status-list" id="modelStatusList"></div>
+        </div>
+
+        <!-- Results -->
+        <div class="results-section" id="resultsSection">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('overview', this)">Overview</div>
+                <div class="tab" onclick="switchTab('details', this)">Model details</div>
+                <div class="tab" onclick="switchTab('table', this)">Comparison table</div>
+                <div class="tab" onclick="switchTab('radar', this)">Radar chart</div>
+            </div>
+
+            <!-- Tab: Overview -->
+            <div class="tab-panel active" id="panel-overview">
+                <div class="summary-metrics" id="summaryMetrics"></div>
+                <div class="chart-card">
+                    <h3>Overall accuracy score — all models</h3>
+                    <div style="position:relative; height:260px;">
+                        <canvas id="barChart" role="img"
+                            aria-label="Bar chart of overall accuracy scores per model"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Dimension breakdown — top 5 models</h3>
+                    <div class="chart-legend" id="dimLegend"></div>
+                    <div style="position:relative; height:240px;">
+                        <canvas id="groupedChart" role="img"
+                            aria-label="Grouped bar chart showing dimension scores per model"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Details -->
+            <div class="tab-panel" id="panel-details">
+                <div id="modelResultCards"></div>
+            </div>
+
+            <!-- Tab: Table -->
+            <div class="tab-panel" id="panel-table">
+                <div class="chart-card">
+                    <div class="table-wrapper">
+                        <table class="comparison-table" id="comparisonTable">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Radar -->
+            <div class="tab-panel" id="panel-radar">
+                <div class="chart-card">
+                    <h3>Multi-dimension radar — top 4 models</h3>
+                    <div class="chart-legend" id="radarLegend"></div>
+                    <div style="position:relative; height:380px; display:flex; justify-content:center;">
+                        <canvas id="radarChart" role="img"
+                            aria-label="Radar chart comparing top models across dimensions"
+                            style="max-width:500px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /app-shell -->
+
+    <script>
+        let models = [
+            { id: "llama-3.3-70b-versatile", name: "llama-3.3-70b-versatile" },
+            { id: "llama-3.1-8b-instant", name: "llama-3.1-8b-instant" },
+            { id: "qwen/qwen3-32b", name: "qwen/qwen3-32b" },
+            { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "llama-4-scout" },
+            { id: "openai/gpt-oss-120b", name: "gpt-oss-120b" },
+            { id: "openai/gpt-oss-20b", name: "gpt-oss-20b" },
+            { id: "allam-2-7b", name: "allam-2-7b" },
+            { id: "groq/compound", name: "compound" },
+            { id: "groq/compound-mini", name: "compound-mini" }
+        ];
+
+        let selectedModels = new Set();
+        let results = [];
+
+        setTimeout(() => {
+            models.forEach(m => selectedModels.add(m.id));
+            renderModelGrid();
+        }, 100);
+
+        function renderModelGrid() {
+            const grid = document.getElementById('modelGrid');
+
+            grid.innerHTML = models.map(m => `
+        <div class="model-chip ${selectedModels.has(m.id) ? 'selected' : ''}"
+             onclick="toggleModel('${m.id}')">
+            <span class="dot"></span>
+            <span class="chip-name">${m.name}</span>
+        </div>
+    `).join('');
+
+            updateCount();
+        }
+
+        function toggleModel(id) {
+            if (selectedModels.has(id)) {
+                selectedModels.delete(id);
+            } else {
+                selectedModels.add(id);
+            }
+
+            renderModelGrid();
+        }
+
+        function selectAll() {
+            models.forEach(m => selectedModels.add(m.id));
+            renderModelGrid();
+        }
+
+        function selectNone() {
+            selectedModels.clear();
+            renderModelGrid();
+        }
+
+        function updateCount() {
+            document.getElementById('selectedCount').textContent =
+                `${selectedModels.size} selected`;
+        }
+
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.tab').forEach(t => {
+                t.classList.remove('active');
+            });
+
+            el.classList.add('active');
+
+            document.querySelectorAll('.tab-panel').forEach(p => {
+                p.classList.remove('active');
+            });
+
+            document.getElementById(`panel-${tabId}`).classList.add('active');
+        }
+
+        async function loadResultsAfterDelay() {
+
+            const runBtn = document.getElementById('runBtn');
+
+            runBtn.disabled = true;
+            runBtn.innerHTML = 'Loading...';
+
+            try {
+
+                const response = await fetch('../results/latest.json');
+
+                const data = await response.json();
+
+                renderResults(data);
+
+                document.getElementById('resultsSection').style.display = 'block';
+
+                runBtn.disabled = false;
+                runBtn.innerHTML = '▶ Run comparison again';
+
+            } catch (err) {
+
+                console.error(err);
+
+                alert("Could not load latest.json");
+
+                runBtn.disabled = false;
+                runBtn.innerHTML = '▶ Try again';
+            }
+        }
+
+        function renderResults(data) {
+
+            const results = data.results.filter(r => r.ok);
+
+            const sorted = [...results].sort(
+                (a, b) => b.scores.overall - a.scores.overall
+            );
+
+            const top = sorted[0];
+
+            document.getElementById('summaryMetrics').innerHTML = `
+        <div class="metric-card">
+            <div class="metric-label">Models</div>
+            <div class="metric-value">${sorted.length}</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-label">Best score</div>
+            <div class="metric-value">${top.scores.overall}%</div>
+            <div class="metric-sub">${top.model}</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-label">Average</div>
+            <div class="metric-value">
+                ${Math.round(
+                sorted.reduce((s, r) => s + r.scores.overall, 0)
+                / sorted.length
+            )}%
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-label">Failures</div>
+            <div class="metric-value">
+                ${data.results.filter(r => !r.ok).length}
+            </div>
+        </div>
+    `;
+
+            document.getElementById('modelResultCards').innerHTML =
+                sorted.map((r, i) => {
+
+                    const tc = r.parsed?.test_cases || [];
+
+                    return `
+            <div class="model-result-card">
+
+                <div class="mrc-header">
+                    <div class="rank-badge rank-${i + 1}">
+                        ${i + 1}
+                    </div>
+
+                    <div class="mrc-name">
+                        ${r.model}
+                    </div>
+
+                    <div class="latency-tag">
+                        ${(r.latency_ms / 1000).toFixed(2)}s
+                    </div>
+
+                    <div class="mrc-overall score-high">
+                        ${r.scores.overall}%
+                    </div>
+                </div>
+
+                <div class="test-stats">
+                    ${tc.length} test cases generated
+                </div>
+
+                <div class="tc-preview">
+
+                    ${tc.map((t, idx) => `
+                        <div class="tc-row">
+
+                            <div class="tc-id">
+                                ${t.id || idx + 1}
+                            </div>
+
+                            <div class="tc-title">
+
+                                <div>
+                                    <strong>${t.title}</strong>
+                                </div>
+
+                                <div style="margin-top:4px;">
+                                    ${t.expected_result || ''}
+                                </div>
+
+                                ${t.steps
+                            ? `
+                                    <ul style="margin-top:6px;padding-left:18px;">
+                                        ${t.steps.map(s => `<li>${s}</li>`).join('')}
+                                    </ul>
+                                    `
+                            : ''
+                        }
+
+                            </div>
+
+                            <div class="tc-type-badge type-${t.type}">
+                                ${t.type}
+                            </div>
+
+                        </div>
+                    `).join('')}
+
+                </div>
+
+            </div>
+            `;
+
+                }).join('');
+        }
+    </script>
+</body>
+
+</html>
