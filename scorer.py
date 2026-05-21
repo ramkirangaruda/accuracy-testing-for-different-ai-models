@@ -2,12 +2,14 @@
 
 import re
 
+
 WEIGHTS = {
-    "coverage":  0.20,
-    "relevance": 0.30,
+    "coverage": 0.20,
+    "relevance": 0.25,
     "structure": 0.20,
     "edge_cases": 0.15,
-    "clarity":   0.15,
+    "clarity": 0.10,
+    "consistency": 0.10,
 }
 
 
@@ -24,11 +26,12 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
             "structure": 0,
             "edge_cases": 0,
             "clarity": 0,
+            "consistency": 0,
             "overall": 0,
             "count": 0,
         }
 
-    # ── Duplicate title penalty ───────────────────────────────
+    # ── Duplicate Penalty ─────────────────────────────────────
 
     titles = [
         tc.get("title", "").strip().lower()
@@ -133,7 +136,7 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         sum(struct_scores) / n
     )
 
-    # ── Edge cases ────────────────────────────────────────────
+    # ── Edge Cases ────────────────────────────────────────────
 
     edge_pattern = re.compile(
         r'edge|boundary|invalid|null|empty|max|min|overflow|exceed|zero|none|missing|corrupt',
@@ -141,7 +144,7 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
     )
 
     neg_pattern = re.compile(
-        r'fail|error|wrong|unauthori|deny|reject|block|timeout|exceed|expired|missing',
+        r'fail|error|wrong|unauthori|deny|reject|block|timeout|expired|missing',
         re.IGNORECASE
     )
 
@@ -166,7 +169,7 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         round(raw_ratio * 180)
     )
 
-    # ── Diversity penalty ─────────────────────────────────────
+    # ── Diversity ─────────────────────────────────────────────
 
     types = [
         tc.get("type")
@@ -237,15 +240,20 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         sum(clarity_scores) / n
     )
 
+    # ── Placeholder Consistency ───────────────────────────────
+
+    consistency = 100
+
     # ── Overall ───────────────────────────────────────────────
 
     overall = round(
 
-        coverage   * WEIGHTS["coverage"]  +
-        relevance  * WEIGHTS["relevance"] +
-        structure  * WEIGHTS["structure"] +
+        coverage * WEIGHTS["coverage"] +
+        relevance * WEIGHTS["relevance"] +
+        structure * WEIGHTS["structure"] +
         edge_cases * WEIGHTS["edge_cases"] +
-        clarity    * WEIGHTS["clarity"]
+        clarity * WEIGHTS["clarity"] +
+        consistency * WEIGHTS["consistency"]
 
         - dup_penalty
         - diversity_penalty
@@ -255,8 +263,6 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         0,
         min(100, overall)
     )
-
-    # ── Final result ──────────────────────────────────────────
 
     return {
 
@@ -269,6 +275,8 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         "edge_cases": edge_cases,
 
         "clarity": clarity,
+
+        "consistency": consistency,
 
         "overall": overall,
 

@@ -1,60 +1,125 @@
 SCENARIOS = [
 
+    # =========================
+    # BANKING
+    # =========================
+
     {
-        "name": "Authentication",
+        "name": "Bank Login",
         "feature": (
             "User login with email and password. "
-            "The system validates credentials, "
-            "locks the account after 5 failed attempts, "
-            "supports remember-me for 30 days, "
-            "and sends a verification email "
-            "on first login from a new device."
-        )
+            "System locks account after 5 failed attempts. "
+            "Remember-me works for 30 days."
+        ),
+        "type": "functional",
+        "domain": "banking",
+        "difficulty": "easy"
     },
 
     {
-        "name": "Ecommerce Checkout",
+        "name": "Invalid IFSC Transfer",
         "feature": (
-            "Users can add products to cart, "
-            "apply coupons, retry failed payments, "
-            "and cancel orders before dispatch."
-        )
+            "Money transfer with invalid IFSC code."
+        ),
+        "type": "edge_case",
+        "domain": "banking",
+        "difficulty": "medium"
+    },
+
+    # =========================
+    # ECOMMERCE
+    # =========================
+
+    {
+        "name": "Refund Request",
+        "feature": (
+            "Customer requests refund for delayed package."
+        ),
+        "type": "customer_support",
+        "domain": "ecommerce",
+        "difficulty": "easy"
     },
 
     {
-        "name": "Bank Transfer",
+        "name": "Angry Customer",
         "feature": (
-            "Users can transfer money between accounts "
-            "with OTP verification, daily transfer limits, "
-            "and fraud detection for suspicious activity."
-        )
+            "Customer complains order has not arrived for 15 days."
+        ),
+        "type": "edge_case",
+        "domain": "ecommerce",
+        "difficulty": "medium"
+    },
+
+    # =========================
+    # API TESTING
+    # =========================
+
+    {
+        "name": "Login API",
+        "feature": (
+            "REST API login endpoint with JWT authentication."
+        ),
+        "type": "api",
+        "domain": "backend",
+        "difficulty": "medium"
     },
 
     {
-        "name": "File Upload",
+        "name": "Payment API",
         "feature": (
-            "Users can upload profile pictures with "
-            "file type validation, size limits, "
-            "virus scanning, and duplicate detection."
-        )
+            "Payment API with transaction verification and timeout handling."
+        ),
+        "type": "api",
+        "domain": "backend",
+        "difficulty": "hard"
+    },
+
+    # =========================
+    # SECURITY
+    # =========================
+
+    {
+        "name": "SQL Injection",
+        "feature": (
+            "Login form vulnerable to SQL injection attempts."
+        ),
+        "type": "security",
+        "domain": "security",
+        "difficulty": "hard"
     },
 
     {
-        "name": "REST API",
+        "name": "Session Hijacking",
         "feature": (
-            "REST API with JWT authentication, "
-            "rate limiting, pagination, "
-            "and role-based authorization."
-        )
+            "User session management and token expiration."
+        ),
+        "type": "security",
+        "domain": "security",
+        "difficulty": "hard"
+    },
+
+    # =========================
+    # EDGE CASES
+    # =========================
+
+    {
+        "name": "Ambiguous Booking",
+        "feature": (
+            "Book me a hotel tomorrow."
+        ),
+        "type": "edge_case",
+        "domain": "general",
+        "difficulty": "hard"
     },
 
     {
-        "name": "Appointment Booking",
+        "name": "Missing Information",
         "feature": (
-            "Patients can book appointments with doctors "
-            "based on availability, cancellation rules, "
-            "and automated reminders."
-        )
-    },
+            "Calculate EMI for my loan."
+        ),
+        "type": "edge_case",
+        "domain": "general",
+        "difficulty": "hard"
+    }
 
 ]

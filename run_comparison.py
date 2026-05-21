@@ -5,6 +5,7 @@ import json
 import os
 import re
 import time
+import difflib
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -17,6 +18,8 @@ from models import AVAILABLE_MODELS
 from prompt_template import SYSTEM_PROMPT, build_user_prompt
 from scorer import score
 from scenarios import SCENARIOS
+
+REPEAT_COUNT = 5
 
 # ── Setup ────────────────────────────────────────────────────────────────
 
@@ -54,6 +57,18 @@ def extract_json(text: str) -> dict:
         "test_cases": [],
         "_parse_error": True
     }
+
+
+def similarity(a: str, b: str) -> float:
+
+    return round(
+        difflib.SequenceMatcher(
+            None,
+            a,
+            b
+        ).ratio() * 100,
+        2
+    )
 
 
 def call_model(
@@ -114,25 +129,38 @@ def call_model(
             "latency_ms": latency_ms,
             "model": model_id,
         }
+
+
 def run_model(
     model_id: str,
     user_prompt: str,
     feature: str,
-    requested_count: int
+    requested_count: int,
+    scenario: dict,
+    run_number: int
 ) -> dict:
 
-    print(f"  ⏳  {model_id} ...", flush=True)
+    print(
+        f"  ⏳ {model_id} "
+        f"| Scenario: {scenario['name']} "
+        f"| Run {run_number}"
+    )
 
     result = call_model(model_id, user_prompt)
 
     if not result["ok"]:
 
         print(
-            f"  ✗   {model_id} — ERROR: "
+            f"  ✗ {model_id} ERROR: "
             f"{result['error'][:80]}"
         )
 
         return {
+            "scenario_name": scenario["name"],
+            "scenario_type": scenario["type"],
+            "scenario_domain": scenario["domain"],
+            "difficulty": scenario["difficulty"],
+            "run_number": run_number,
             "model": model_id,
             "ok": False,
             "error": result["error"],
@@ -146,7 +174,8 @@ def run_model(
                     "edge_cases",
                     "clarity",
                     "overall",
-                    "count"
+                    "count",
+                    "consistency"
                 ]
             },
         }
@@ -159,19 +188,18 @@ def run_model(
         requested_count
     )
 
-    ok_msg = (
-        "✓"
-        if not parsed.get("_parse_error")
-        else "⚠ JSON parse error"
-    )
-
     print(
-        f"  {ok_msg}  {model_id} — "
-        f"overall: {scores['overall']}%  "
-        f"({result['latency_ms']}ms)"
+        f"  ✓ {model_id} "
+        f"| overall: {scores['overall']}% "
+        f"| latency: {result['latency_ms']}ms"
     )
 
     return {
+        "scenario_name": scenario["name"],
+        "scenario_type": scenario["type"],
+        "scenario_domain": scenario["domain"],
+        "difficulty": scenario["difficulty"],
+        "run_number": run_number,
         "model": model_id,
         "ok": True,
         "latency_ms": result["latency_ms"],
@@ -190,21 +218,6 @@ def main():
     )
 
     parser.add_argument(
-        "--feature",
-
-        default=(
-            "User login with email and password. "
-            "The system validates credentials, "
-            "locks the account after 5 failed attempts, "
-            "supports remember-me for 30 days, "
-            "and sends a verification email "
-            "on first login from a new device."
-        ),
-
-        help="Feature description"
-    )
-
-    parser.add_argument(
         "--focus",
 
         default="functional",
@@ -217,8 +230,6 @@ def main():
             "regression",
             "performance"
         ],
-
-        help="Type of tests"
     )
 
     parser.add_argument(
@@ -234,10 +245,10 @@ def main():
     )
 
     parser.add_argument(
-    "--workers",
-    default=1,
-    type=int
-)
+        "--workers",
+        default=1,
+        type=int
+    )
 
     args = parser.parse_args()
 
@@ -253,11 +264,12 @@ def main():
     print("  TestServ AI Model Comparator — iFocus Systec")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    print(f"  Focus   : {args.focus}")
-    print(f"  Count   : {args.count} test cases per model")
-    print(f"  Models  : {len(models_to_run)}")
-    print(f"  Workers : {args.workers}")
-    print(f"  Scenarios : {len(SCENARIOS)}")
+    print(f"  Focus      : {args.focus}")
+    print(f"  Count      : {args.count}")
+    print(f"  Models     : {len(models_to_run)}")
+    print(f"  Workers    : {args.workers}")
+    print(f"  Scenarios  : {len(SCENARIOS)}")
+    print(f"  Repeats    : {REPEAT_COUNT}")
 
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
@@ -275,40 +287,84 @@ def main():
             max_workers=args.workers
         ) as pool:
 
-            futures = {
+            futures = []
 
-                pool.submit(
-                    run_model,
-                    m,
-                    user_prompt,
-                    scenario["feature"],
-                    args.count
-                ): m
+            for model_id in models_to_run:
 
-                for m in models_to_run
-            }
+                for run_number in range(
+                    1,
+                    REPEAT_COUNT + 1
+                ):
+
+                    futures.append(
+
+                        pool.submit(
+                            run_model,
+                            model_id,
+                            user_prompt,
+                            scenario["feature"],
+                            args.count,
+                            scenario,
+                            run_number
+                        )
+                    )
 
             for fut in as_completed(futures):
 
                 result = fut.result()
 
-                result["scenario"] = scenario["name"]
-
                 all_results.append(result)
 
-    # Sort best → worst
+    # ── Consistency Analysis ─────────────────────────────────────────────
+
+    grouped = {}
+
+    for r in all_results:
+
+        if not r["ok"]:
+            continue
+
+        key = (
+            r["scenario_name"],
+            r["model"]
+        )
+
+        grouped.setdefault(key, []).append(r)
+
+    for key, runs in grouped.items():
+
+        similarities = []
+
+        for i in range(len(runs)):
+
+            for j in range(i + 1, len(runs)):
+
+                sim = similarity(
+                    runs[i]["raw_text"],
+                    runs[j]["raw_text"]
+                )
+
+                similarities.append(sim)
+
+        consistency = (
+            round(sum(similarities) / len(similarities), 2)
+            if similarities else 100
+        )
+
+        for r in runs:
+            r["scores"]["consistency"] = consistency
+
+    # ── Sort Best → Worst ────────────────────────────────────────────────
 
     all_results.sort(
-        key=lambda r: r["scores"]["overall"],
+        key=lambda r: (
+            r["scores"]["overall"],
+            r["scores"].get("consistency", 0)
+        ),
         reverse=True
     )
 
-    all_results.sort(
-        key=lambda r: r["scores"]["overall"],
-        reverse=True
-    )
-
-    # ── Save results ────────────────────────────────────────────────
+    # ── Save Results ─────────────────────────────────────────────────────
 
     timestamp = datetime.now().strftime(
         "%Y%m%d_%H%M%S"
@@ -323,9 +379,6 @@ def main():
             "timestamp":
                 datetime.now().isoformat(),
 
-            "feature":
-                args.feature,
-
             "focus":
                 args.focus,
 
@@ -335,18 +388,16 @@ def main():
             "models_run":
                 len(models_to_run),
 
-            "models_ok":
-                sum(
-                    1 for r in all_results
-                    if r["ok"]
-                ),
+            "scenarios":
+                len(SCENARIOS),
+
+            "repeat_count":
+                REPEAT_COUNT,
         },
 
         "results":
             all_results,
     }
-
-    # Save timestamped run
 
     out_file.write_text(
 
@@ -359,8 +410,6 @@ def main():
         encoding="utf-8"
     )
 
-    # Save latest.json
-
     (RESULTS_DIR / "latest.json").write_text(
 
         json.dumps(
@@ -372,42 +421,46 @@ def main():
         encoding="utf-8"
     )
 
-    # ── Summary ─────────────────────────────────────────────────────
+    # ── Summary ──────────────────────────────────────────────────────────
 
     print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
     print(
-        f"  {'RANK':<5} "
-        f"{'MODEL':<40} "
-        f"{'OVERALL':>8} "
-        f"{'LATENCY':>9}"
+        f"  {'MODEL':<35} "
+        f"{'OVERALL':>10} "
+        f"{'CONSISTENCY':>14} "
+        f"{'LATENCY':>10}"
     )
 
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    for i, r in enumerate(all_results, 1):
+    for r in all_results[:15]:
 
-        status = (
+        overall = (
             f"{r['scores']['overall']}%"
             if r["ok"]
             else "FAILED"
         )
 
-        lat = f"{r['latency_ms']}ms"
+        consistency = (
+            f"{r['scores'].get('consistency', 0)}%"
+            if r["ok"]
+            else "-"
+        )
 
-        name = r["model"][:38]
+        latency = f"{r['latency_ms']}ms"
 
         print(
-            f"  {i:<5} "
-            f"{name:<40} "
-            f"{status:>8} "
-            f"{lat:>9}"
+            f"  {r['model'][:35]:<35} "
+            f"{overall:>10} "
+            f"{consistency:>14} "
+            f"{latency:>10}"
         )
 
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    print(f"\n  Results saved → {out_file}")
-    print("  Dashboard     → http://localhost:8000/dashboard\n")
+    print(f"\nResults saved → {out_file}")
+    print("Dashboard     → http://localhost:8000/dashboard\n")
 
 
 if __name__ == "__main__":
