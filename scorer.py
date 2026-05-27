@@ -1,5 +1,3 @@
-# scorer.py
-
 import re
 
 
@@ -13,9 +11,53 @@ WEIGHTS = {
 }
 
 
+def safe_str(value):
+
+    if value is None:
+        return ""
+
+    if isinstance(value, str):
+        return value
+
+    if isinstance(value, (dict, list)):
+        return str(value)
+
+    return str(value)
+
+
+def safe_join_steps(steps):
+
+    if steps is None:
+        return ""
+
+    if isinstance(steps, list):
+        return " ".join(
+            safe_str(s)
+            for s in steps
+        )
+
+    return safe_str(steps)
+
+
 def score(parsed: dict, feature: str, requested_count: int) -> dict:
 
-    tc_list = parsed.get("test_cases", [])
+    # Handle malformed top-level structures safely
+    if isinstance(parsed, dict):
+        tc_list = parsed.get("test_cases", [])
+    elif isinstance(parsed, list):
+        # Some models return raw list instead of object
+        tc_list = parsed
+    else:
+        tc_list = []
+
+    if not isinstance(tc_list, list):
+        tc_list = []
+
+    # Keep only dict objects
+    tc_list = [
+        tc for tc in tc_list
+        if isinstance(tc, dict)
+    ]
 
     n = len(tc_list)
 
@@ -31,10 +73,14 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
             "count": 0,
         }
 
-    # ── Duplicate Penalty ─────────────────────────────────────
+    # ─────────────────────────────────────────────
+    # Duplicate Penalty
+    # ─────────────────────────────────────────────
 
     titles = [
-        tc.get("title", "").strip().lower()
+        safe_str(
+            tc.get("title", "")
+        ).strip().lower()
         for tc in tc_list
     ]
 
@@ -45,17 +91,21 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         (n - unique_titles) * 10
     )
 
-    # ── Coverage ──────────────────────────────────────────────
+    # ─────────────────────────────────────────────
+    # Coverage
+    # ─────────────────────────────────────────────
 
     coverage = min(
         100,
         round((n / requested_count) * 100)
     )
 
-    # ── Relevance ─────────────────────────────────────────────
+    # ─────────────────────────────────────────────
+    # Relevance
+    # ─────────────────────────────────────────────
 
     feature_words = [
-        w for w in re.split(r'\W+', feature.lower())
+        w for w in re.split(r"\W+", feature.lower())
         if len(w) > 3
     ]
 
@@ -64,10 +114,23 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
     for tc in tc_list:
 
         blob = " ".join([
-            tc.get("title", ""),
-            " ".join(tc.get("steps", [])),
-            tc.get("expected_result", ""),
-            tc.get("preconditions", ""),
+
+            safe_str(
+                tc.get("title", "")
+            ),
+
+            safe_join_steps(
+                tc.get("steps", [])
+            ),
+
+            safe_str(
+                tc.get("expected_result", "")
+            ),
+
+            safe_str(
+                tc.get("preconditions", "")
+            ),
+
         ]).lower()
 
         hits = sum(
@@ -88,7 +151,9 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         (sum(rel_scores) / n) * 100
     )
 
-    # ── Structure ─────────────────────────────────────────────
+    # ─────────────────────────────────────────────
+    # Structure
+    # ─────────────────────────────────────────────
 
     struct_scores = []
 
@@ -99,7 +164,11 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         if tc.get("id"):
             s += 5
 
-        if tc.get("title") and len(tc["title"]) >= 8:
+        title = safe_str(
+            tc.get("title", "")
+        )
+
+        if len(title) >= 8:
             s += 15
 
         if tc.get("type") in (
@@ -116,15 +185,30 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         ):
             s += 10
 
-        if tc.get("preconditions") and len(tc["preconditions"]) > 5:
+        preconditions = safe_str(
+            tc.get("preconditions", "")
+        )
+
+        if len(preconditions) > 5:
             s += 15
 
         steps = tc.get("steps", [])
 
-        if isinstance(steps, list) and len(steps) >= 2:
-            s += 25
+        if isinstance(steps, list):
 
-        if tc.get("expected_result") and len(tc["expected_result"]) > 10:
+            valid_steps = [
+                s for s in steps
+                if isinstance(s, str)
+            ]
+
+            if len(valid_steps) >= 2:
+                s += 25
+
+        expected_result = safe_str(
+            tc.get("expected_result", "")
+        )
+
+        if len(expected_result) > 10:
             s += 15
 
         if tc.get("category"):
@@ -136,28 +220,38 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         sum(struct_scores) / n
     )
 
-    # ── Edge Cases ────────────────────────────────────────────
+    # ─────────────────────────────────────────────
+    # Edge Cases
+    # ─────────────────────────────────────────────
 
     edge_pattern = re.compile(
-        r'edge|boundary|invalid|null|empty|max|min|overflow|exceed|zero|none|missing|corrupt',
+        r"edge|boundary|invalid|null|empty|max|min|overflow|exceed|zero|none|missing|corrupt",
         re.IGNORECASE
     )
 
     neg_pattern = re.compile(
-        r'fail|error|wrong|unauthori|deny|reject|block|timeout|expired|missing',
+        r"fail|error|wrong|unauthori|deny|reject|block|timeout|expired|missing",
         re.IGNORECASE
     )
 
     edge_count = sum(
         1 for tc in tc_list
         if tc.get("type") == "edge"
-        or edge_pattern.search(tc.get("title", ""))
+        or edge_pattern.search(
+            safe_str(
+                tc.get("title", "")
+            )
+        )
     )
 
     neg_count = sum(
         1 for tc in tc_list
         if tc.get("type") == "negative"
-        or neg_pattern.search(tc.get("title", ""))
+        or neg_pattern.search(
+            safe_str(
+                tc.get("title", "")
+            )
+        )
     )
 
     raw_ratio = (
@@ -169,7 +263,9 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         round(raw_ratio * 180)
     )
 
-    # ── Diversity ─────────────────────────────────────────────
+    # ─────────────────────────────────────────────
+    # Diversity
+    # ─────────────────────────────────────────────
 
     types = [
         tc.get("type")
@@ -183,7 +279,9 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         (3 - type_diversity) * 15
     )
 
-    # ── Clarity ───────────────────────────────────────────────
+    # ─────────────────────────────────────────────
+    # Clarity
+    # ─────────────────────────────────────────────
 
     generic_phrases = [
         "verify",
@@ -198,16 +296,20 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
 
         c = 50
 
-        title_len = len(
+        title = safe_str(
             tc.get("title", "")
         )
+
+        title_len = len(title)
 
         if 10 <= title_len <= 90:
             c += 20
 
         steps = tc.get("steps", [])
 
-        step_blob = " ".join(steps).lower()
+        step_blob = safe_join_steps(
+            steps
+        ).lower()
 
         generic_hits = sum(
             1 for g in generic_phrases
@@ -226,12 +328,11 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         ):
             c += 20
 
-        er = tc.get(
-            "expected_result",
-            ""
+        er = safe_str(
+            tc.get("expected_result", "")
         )
 
-        if er and len(er) > 15:
+        if len(er) > 15:
             c += 10
 
         clarity_scores.append(c)
@@ -240,11 +341,15 @@ def score(parsed: dict, feature: str, requested_count: int) -> dict:
         sum(clarity_scores) / n
     )
 
-    # ── Placeholder Consistency ───────────────────────────────
+    # ─────────────────────────────────────────────
+    # Consistency
+    # ─────────────────────────────────────────────
 
     consistency = 100
 
-    # ── Overall ───────────────────────────────────────────────
+    # ─────────────────────────────────────────────
+    # Overall
+    # ─────────────────────────────────────────────
 
     overall = round(
 

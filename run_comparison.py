@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-
+from opik import track
+from opik import opik_context
+from evaluations import EVALUATIONS
 import argparse
 import json
 import os
 import re
 import time
 import difflib
+from judge import evaluate_output
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -19,7 +22,7 @@ from prompt_template import SYSTEM_PROMPT, build_user_prompt
 from scorer import score
 from scenarios import SCENARIOS
 
-REPEAT_COUNT = 5
+REPEAT_COUNT = 2
 
 # ── Setup ────────────────────────────────────────────────────────────────
 
@@ -69,6 +72,63 @@ def similarity(a: str, b: str) -> float:
         ).ratio() * 100,
         2
     )
+
+
+def build_generation_failure_eval(reason: str) -> dict:
+
+    return {
+        "evaluation_status": "generation_failed",
+        "technical_correctness": "unknown",
+        "automation_ready": "unknown",
+        "assertions_testable": "unknown",
+        "oracle_correct": "unknown",
+        "edge_case_realism": "unknown",
+        "summary": "Generation failed; judge not called",
+        "strengths": [],
+        "weaknesses": ["No output to evaluate"],
+        "critical_failures": [reason],
+        "suggested_tags": ["generation-failure"],
+        "judge_model": None,
+        "judge_latency_ms": None,
+    }
+
+
+def build_skipped_eval() -> dict:
+
+    return {
+        "evaluation_status": "skipped",
+        "technical_correctness": "unknown",
+        "automation_ready": "unknown",
+        "assertions_testable": "unknown",
+        "oracle_correct": "unknown",
+        "edge_case_realism": "unknown",
+        "summary": "Evaluation skipped for repeat run",
+        "strengths": [],
+        "weaknesses": [],
+        "critical_failures": [],
+        "suggested_tags": ["evaluation-skipped"],
+        "judge_model": None,
+        "judge_latency_ms": None,
+    }
+
+
+def build_unknown_eval(reason: str) -> dict:
+
+    return {
+        "evaluation_status": "unknown",
+        "technical_correctness": "unknown",
+        "automation_ready": "unknown",
+        "assertions_testable": "unknown",
+        "oracle_correct": "unknown",
+        "edge_case_realism": "unknown",
+        "summary": f"Evaluation unknown: {reason}",
+        "strengths": [],
+        "weaknesses": [],
+        "critical_failures": [reason],
+        "suggested_tags": ["evaluation-unknown"],
+        "judge_model": None,
+        "judge_latency_ms": None,
+    }
 
 
 def call_model(
@@ -130,7 +190,7 @@ def call_model(
             "model": model_id,
         }
 
-
+@track
 def run_model(
     model_id: str,
     user_prompt: str,
@@ -139,6 +199,8 @@ def run_model(
     scenario: dict,
     run_number: int
 ) -> dict:
+    
+    
 
     print(
         f"  ⏳ {model_id} "
@@ -146,7 +208,64 @@ def run_model(
         f"| Run {run_number}"
     )
 
+    evaluation = build_unknown_eval("initial state")
     result = call_model(model_id, user_prompt)
+    if result.get("ok") and not result.get("raw_text"):
+        result["ok"] = False
+        result["error"] = "Empty response"
+    if result.get("ok") and result.get("raw_text"):
+
+        print(
+            "  [GENERATION] "
+            f"status=success model={model_id} "
+            f"latency_ms={result['latency_ms']}"
+        )
+
+        # only judge first repeat
+        if run_number == 1:
+
+            evaluation = evaluate_output(
+                scenario,
+                result["raw_text"]
+            )
+
+        else:
+
+            evaluation = build_skipped_eval()
+
+    else:
+
+        failure_reason = result.get("error") or "Empty response"
+
+        print(
+            "  [GENERATION] "
+            f"status=failed model={model_id} "
+            f"latency_ms={result.get('latency_ms')}"
+        )
+
+        evaluation = build_generation_failure_eval(failure_reason)
+
+    print(
+        "  [EVALUATION] "
+        f"status={evaluation.get('evaluation_status')} "
+        f"judge_model={evaluation.get('judge_model')} "
+        f"judge_latency_ms={evaluation.get('judge_latency_ms')}"
+    )
+
+    try:
+        opik_context.update_current_trace(
+            metadata={
+                "model": model_id,
+                "scenario": scenario["name"],
+                "domain": scenario["domain"],
+                "difficulty": scenario["difficulty"],
+                "run_number": run_number,
+                "evaluation": evaluation
+            },
+            tags=evaluation.get("suggested_tags", [])
+        )
+    except Exception as exc:
+        print(f"  [OPIK] update failed: {exc}")
 
     if not result["ok"]:
 
@@ -166,6 +285,7 @@ def run_model(
             "error": result["error"],
             "latency_ms": result["latency_ms"],
             "parsed": {},
+            "evaluation": evaluation,
             "scores": {
                 k: 0 for k in [
                     "coverage",
@@ -182,11 +302,26 @@ def run_model(
 
     parsed = extract_json(result["raw_text"])
 
-    scores = score(
-        parsed,
-        feature,
-        requested_count
-    )
+    try:
+        scores = score(
+            parsed,
+            feature,
+            requested_count
+        )
+    except Exception as exc:
+        print(f"  [SCORER ERROR] {exc}")
+        scores = {
+            "overall": 0,
+            "coverage": 0,
+            "relevance": 0,
+            "structure": 0,
+            "edge_cases": 0,
+            "clarity": 0,
+            "consistency": 0,
+            "count": 0,
+            "scoring_failed": True,
+            "scoring_error": str(exc),
+        }
 
     print(
         f"  ✓ {model_id} "
@@ -206,6 +341,7 @@ def run_model(
         "raw_text": result["raw_text"],
         "parsed": parsed,
         "scores": scores,
+        "evaluation": evaluation,
     }
 
 
@@ -272,6 +408,12 @@ def main():
     print(f"  Repeats    : {REPEAT_COUNT}")
 
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+    if args.workers > 1:
+        print(
+            "  [WARN] Judge is rate-limit heavy; "
+            "recommend --workers 1 for judge-heavy runs."
+        )
 
     for scenario in SCENARIOS:
 

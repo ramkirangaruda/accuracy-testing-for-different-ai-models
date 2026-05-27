@@ -1,59 +1,5 @@
 SCENARIOS = [
 
-    # =========================
-    # BANKING
-    # =========================
-
-    {
-        "name": "Bank Login",
-        "feature": (
-            "User login with email and password. "
-            "System locks account after 5 failed attempts. "
-            "Remember-me works for 30 days."
-        ),
-        "type": "functional",
-        "domain": "banking",
-        "difficulty": "easy"
-    },
-
-    {
-        "name": "Invalid IFSC Transfer",
-        "feature": (
-            "Money transfer with invalid IFSC code."
-        ),
-        "type": "edge_case",
-        "domain": "banking",
-        "difficulty": "medium"
-    },
-
-    # =========================
-    # ECOMMERCE
-    # =========================
-
-    {
-        "name": "Refund Request",
-        "feature": (
-            "Customer requests refund for delayed package."
-        ),
-        "type": "customer_support",
-        "domain": "ecommerce",
-        "difficulty": "easy"
-    },
-
-    {
-        "name": "Angry Customer",
-        "feature": (
-            "Customer complains order has not arrived for 15 days."
-        ),
-        "type": "edge_case",
-        "domain": "ecommerce",
-        "difficulty": "medium"
-    },
-
-    # =========================
-    # API TESTING
-    # =========================
-
     {
         "name": "Login API",
         "feature": (
@@ -73,10 +19,6 @@ SCENARIOS = [
         "domain": "backend",
         "difficulty": "hard"
     },
-
-    # =========================
-    # SECURITY
-    # =========================
 
     {
         "name": "SQL Injection",
@@ -98,24 +40,10 @@ SCENARIOS = [
         "difficulty": "hard"
     },
 
-    # =========================
-    # EDGE CASES
-    # =========================
-
     {
         "name": "Ambiguous Booking",
         "feature": (
             "Book me a hotel tomorrow."
-        ),
-        "type": "edge_case",
-        "domain": "general",
-        "difficulty": "hard"
-    },
-
-    {
-        "name": "Missing Information",
-        "feature": (
-            "Calculate EMI for my loan."
         ),
         "type": "edge_case",
         "domain": "general",
