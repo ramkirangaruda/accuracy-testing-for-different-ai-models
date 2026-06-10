@@ -46,17 +46,16 @@ def audit_skills(response_text: str) -> list[str]:
         issues.append(f"Too many required skills ({len(req)}, max 4)")
     if len(opt) > 4:
         issues.append(f"Too many optional skills ({len(opt)}, max 4)")
+    if not req:
+        issues.append("No required skills generated")
 
     all_skills = [s.lower() for s in req + opt]
     for s in all_skills:
         if s in VAGUE_SKILLS:
-            issues.append(f"Vague skill kept: '{s}'")
+            issues.append(f"Vague skill: '{s}'")
 
-    if not data.get("removed_skills"):
-        issues.append("No skills removed / no removal reasoning provided")
-
-    salary_flag = data.get("salary_flag", "").lower()
-    if salary_flag not in ("ok",) and not salary_flag:
+    salary_flag = (data.get("salary_flag") or "").strip()
+    if not salary_flag:
         issues.append("salary_flag missing")
 
     return issues
@@ -137,10 +136,6 @@ def render_skills(results: list[dict]) -> None:
             parsed = json.loads(r.get("response", "{}"))
             print(f"  Required : {parsed.get('required_skills', [])}")
             print(f"  Optional : {parsed.get('optional_skills', [])}")
-            removed = parsed.get("removed_skills", {})
-            if removed:
-                for skill, reason in removed.items():
-                    print(f"  Removed  : {skill} — {reason}")
             print(f"  Salary   : {parsed.get('salary_flag', '-')}")
         except Exception:
             print(f"  (raw) {(r.get('response') or '')[:300]}")
@@ -255,24 +250,46 @@ def main():
         sys.exit(1)
 
     # Detect mode from data shape
-    first_ok = next((r for r in results if r.get("response")), None)
-    if first_ok:
-        try:
-            json.loads(first_ok["response"])
-            mode = "skills"
-        except Exception:
-            mode = "jd"
+    # full endpoint: each result has "skill" and "jd" sub-objects
+    first = results[0] if results else {}
+    if "skill" in first or "jd" in first:
+        mode = "full"
     else:
-        mode = "jd"
+        first_ok = next((r for r in results if r.get("response")), None)
+        if first_ok:
+            try:
+                json.loads(first_ok["response"])
+                mode = "skills"
+            except Exception:
+                mode = "jd"
+        else:
+            mode = "jd"
 
     print(f"\n  Mode detected: {mode.upper()}")
 
-    if mode == "skills":
+    if mode == "full":
+        # Split into skill and jd result lists and render both sections
+        skill_results = []
+        jd_results = []
+        for r in results:
+            model = r.get("model", "?")
+            s = r.get("skill") or {}
+            j = r.get("jd") or {}
+            skill_results.append({**s, "model": model})
+            if j:
+                jd_results.append({**j, "model": model})
+        print("\n  ── SKILLS ──")
+        render_skills(skill_results)
+        render_summary(skill_results, "skills")
+        print("\n  ── JD ──")
+        render_jd(jd_results)
+        render_summary(jd_results, "jd")
+    elif mode == "skills":
         render_skills(results)
+        render_summary(results, mode)
     else:
         render_jd(results)
-
-    render_summary(results, mode)
+        render_summary(results, mode)
 
 
 if __name__ == "__main__":
