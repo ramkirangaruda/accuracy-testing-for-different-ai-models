@@ -77,6 +77,8 @@ RULES:
 13. Do NOT add a closing line like "Apply now" or "We look forward to hearing from you." End with the Details section.
 14. Do NOT include thinking, reasoning, or word counts in your response. Output only the JD.
 15. Use plain markdown. No bold on section headers — just ## headers. No horizontal rules.
+16. actionable reports", "actionable recommendations", "actionable insights
+17. Do NOT include any <think>, <reasoning>, or chain-of-thought tags. Output only the final JD.
 """
 
 
