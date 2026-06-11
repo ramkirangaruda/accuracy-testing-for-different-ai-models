@@ -1,8 +1,8 @@
 # api.py — FastAPI app comparing JD generation & skill suggestion quality
 # across all available Groq models, in parallel.
 #
-# Run:  uvicorn api:app --reload
-# Swagger UI:  http://localhost:8000/docs
+# Run:  uvicorn api:app --reload --port 9000
+# Swagger UI:  http://localhost:9000/docs
 
 import asyncio
 import json
